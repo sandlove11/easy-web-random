@@ -3,203 +3,352 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>随机数生成器</title>
+  <title>装备分配系统</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: system-ui, sans-serif;
-      background: #f5f5f5;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #eef0f4;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
     }
 
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 32px 24px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-    }
-
-    h1 {
-      font-size: 1.4rem;
-      text-align: center;
-      margin-bottom: 28px;
-      color: #222;
-    }
-
-    .row {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .field {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    label {
-      font-size: 0.85rem;
-      color: #555;
-    }
-
-    input[type="number"] {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 1rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input[type="number"]:focus {
-      border-color: #4a90e2;
-    }
-
-    .field-count {
-      margin-bottom: 20px;
-    }
-
-    .result-box {
-      background: #f0f6ff;
-      border-radius: 10px;
-      padding: 20px;
-      text-align: center;
-      margin-bottom: 20px;
-      min-height: 80px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .result-label {
-      font-size: 0.8rem;
-      color: #888;
-    }
-
-    .result-numbers {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #2563eb;
-      word-break: break-all;
-      line-height: 1.3;
-    }
-
-    .result-numbers.placeholder {
-      font-size: 1rem;
-      font-weight: 400;
-      color: #bbb;
-    }
-
-    button {
-      width: 100%;
-      padding: 14px;
-      background: #2563eb;
+    /* ── 顶部导航栏 ── */
+    .header {
+      background: #16213e;
       color: #fff;
+      padding: 14px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    }
+
+    .header h1 {
+      font-size: 1.15rem;
+      color: #f0c060;
+      flex: 1;
+      min-width: 140px;
+      letter-spacing: 0.02em;
+    }
+
+    .header-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .btn {
+      padding: 8px 18px;
       border: none;
-      border-radius: 8px;
-      font-size: 1rem;
+      border-radius: 6px;
       cursor: pointer;
-      transition: background 0.2s;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: filter 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary  { background: #f0c060; color: #16213e; }
+    .btn-primary:hover  { filter: brightness(1.08); }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.28);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.22); }
+
+    .btn-danger { background: #c0392b; color: #fff; }
+    .btn-danger:hover { filter: brightness(1.12); }
+
+    .btn-ghost {
+      background: #fff;
+      color: #555;
+      border: 2px dashed #ccc;
+      font-weight: 500;
+    }
+    .btn-ghost:hover { border-color: #4a90e2; color: #4a90e2; }
+
+    /* ── 主体内容 ── */
+    .main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
     }
 
-    button:hover {
-      background: #1d4ed8;
+    .tip {
+      padding: 11px 16px;
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 16px;
+      font-size: 0.83rem;
+      color: #1e40af;
+      line-height: 1.55;
     }
 
-    button:active {
-      background: #1e40af;
+    /* ── 物品行 ── */
+    .item-row {
+      background: #fff;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 7px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      transition: box-shadow 0.2s;
     }
+    .item-row:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.11); }
 
-    .error {
-      color: #e74c3c;
+    .item-num {
+      font-weight: 700;
+      color: #999;
       font-size: 0.82rem;
+      min-width: 34px;
+      padding-top: 9px;
+      user-select: none;
+    }
+
+    .players {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      flex: 1;
+    }
+
+    /* ── 玩家格子 ── */
+    .player-slot {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: #f4f5f7;
+      border-radius: 6px;
+      padding: 4px 6px;
+      border: 2px solid transparent;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .player-slot.winner {
+      background: #fffbeb;
+      border-color: #f59e0b;
+    }
+
+    .player-id {
+      width: 88px;
+      padding: 5px 8px;
+      border: 1px solid #dde0e6;
+      border-radius: 4px;
+      font-size: 0.83rem;
+      outline: none;
+      background: #fff;
+      color: #222;
+      transition: border-color 0.15s;
+    }
+    .player-id:focus { border-color: #4a90e2; }
+    .player-slot.winner .player-id {
+      font-weight: 700;
+      background: transparent;
+      border-color: #f59e0b;
+      color: #92400e;
+    }
+
+    .roll-result {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #666;
+      min-width: 26px;
       text-align: center;
-      margin-top: -12px;
-      margin-bottom: 12px;
-      min-height: 1.1em;
+      display: none;
+    }
+    .player-slot.winner .roll-result {
+      color: #b45309;
+    }
+
+    .winner-crown {
+      display: none;
+      font-size: 0.9rem;
+    }
+    .player-slot.winner .winner-crown { display: inline; }
+
+    /* ── 添加玩家按钮 ── */
+    .add-player-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px dashed #c8ccd4;
+      background: transparent;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .add-player-btn:hover { border-color: #4a90e2; color: #4a90e2; }
+
+    /* ── 底部添加物品区 ── */
+    .add-item-bar {
+      text-align: center;
+      padding: 18px 0 24px;
+    }
+
+    @media (max-width: 600px) {
+      .header { padding: 10px 14px; }
+      .header h1 { font-size: 1rem; }
+      .main { padding: 12px; }
+      .item-row { padding: 8px 10px; }
+      .player-id { width: 76px; }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>随机数生成器</h1>
 
-    <div class="row">
-      <div class="field">
-        <label for="min">最小值</label>
-        <input type="number" id="min" value="1" />
-      </div>
-      <div class="field">
-        <label for="max">最大值</label>
-        <input type="number" id="max" value="100" />
-      </div>
+  <div class="header">
+    <h1>⚔️ 装备分配系统</h1>
+    <div class="header-btns">
+      <button class="btn btn-primary" onclick="distribute()">🎲 开始分配</button>
+      <button class="btn btn-secondary" onclick="addItem()">＋ 添加物品</button>
+      <button class="btn btn-danger" onclick="resetResults()">↺ 重置结果</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="tip">
+      在每行物品后填写有需求的玩家 ID，点击「🎲 开始分配」后系统对每位玩家 Roll 0~100，
+      <strong>金色高亮</strong>为该件装备的获得者。平局时可再次点击「开始分配」重新随机。
     </div>
 
-    <div class="field field-count">
-      <label for="count">生成数量</label>
-      <input type="number" id="count" value="1" min="1" max="100" />
+    <div id="items-container"></div>
+
+    <div class="add-item-bar">
+      <button class="btn btn-ghost" onclick="addItem()">＋ 添加更多物品</button>
     </div>
-
-    <div class="error" id="error"></div>
-
-    <div class="result-box">
-      <span class="result-label">结果</span>
-      <div class="result-numbers placeholder" id="result">点击生成</div>
-    </div>
-
-    <button onclick="generate()">生成随机数</button>
   </div>
 
   <script>
-    function generate() {
-      const minVal = parseInt(document.getElementById('min').value, 10);
-      const maxVal = parseInt(document.getElementById('max').value, 10);
-      const count  = parseInt(document.getElementById('count').value, 10);
-      const errEl  = document.getElementById('error');
-      const resEl  = document.getElementById('result');
+    const DEFAULT_ITEMS   = 30;
+    const DEFAULT_PLAYERS = 5;
 
-      if (isNaN(minVal) || isNaN(maxVal) || isNaN(count)) {
-        errEl.textContent = '请输入有效的数字';
-        return;
-      }
-      if (minVal > maxVal) {
-        errEl.textContent = '最小值不能大于最大值';
-        return;
-      }
-      if (count < 1 || count > 100) {
-        errEl.textContent = '生成数量须在 1 ~ 100 之间';
-        return;
-      }
+    function createPlayerSlot() {
+      const slot = document.createElement('div');
+      slot.className = 'player-slot';
 
-      errEl.textContent = '';
+      const input = document.createElement('input');
+      input.type        = 'text';
+      input.className   = 'player-id';
+      input.placeholder = '玩家ID';
+      input.maxLength   = 24;
 
-      const results = Array.from({ length: count }, () =>
-        Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal
-      );
+      const result = document.createElement('span');
+      result.className = 'roll-result';
 
-      resEl.classList.remove('placeholder');
-      resEl.textContent = results.join('  ');
+      const crown = document.createElement('span');
+      crown.className   = 'winner-crown';
+      crown.textContent = '🏆';
+
+      slot.appendChild(input);
+      slot.appendChild(result);
+      slot.appendChild(crown);
+      return slot;
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') generate();
-    });
+    function createItemRow(index) {
+      const row = document.createElement('div');
+      row.className = 'item-row';
+
+      const numEl = document.createElement('div');
+      numEl.className   = 'item-num';
+      numEl.textContent = '#' + index;
+
+      const playersEl = document.createElement('div');
+      playersEl.className = 'players';
+
+      for (let i = 0; i < DEFAULT_PLAYERS; i++) {
+        playersEl.appendChild(createPlayerSlot());
+      }
+
+      const addBtn = document.createElement('button');
+      addBtn.className = 'add-player-btn';
+      addBtn.title     = '添加玩家';
+      addBtn.innerHTML = '+';
+      addBtn.onclick   = function () {
+        playersEl.insertBefore(createPlayerSlot(), addBtn);
+      };
+
+      playersEl.appendChild(addBtn);
+      row.appendChild(numEl);
+      row.appendChild(playersEl);
+      return row;
+    }
+
+    function distribute() {
+      const rows = document.querySelectorAll('.item-row');
+      rows.forEach(row => {
+        const slots = Array.from(row.querySelectorAll('.player-slot'));
+
+        // 清除上一次结果
+        slots.forEach(slot => {
+          slot.classList.remove('winner');
+          const r = slot.querySelector('.roll-result');
+          r.textContent  = '';
+          r.style.display = 'none';
+        });
+
+        const filledSlots = slots.filter(slot =>
+          slot.querySelector('.player-id').value.trim() !== ''
+        );
+        if (filledSlots.length === 0) return;
+
+        let maxVal = -1;
+        filledSlots.forEach(slot => {
+          const roll = Math.floor(Math.random() * 101);
+          const r    = slot.querySelector('.roll-result');
+          r.textContent  = roll;
+          r.style.display = 'inline';
+          if (roll > maxVal) maxVal = roll;
+        });
+
+        // 高亮所有最高分（处理平局）
+        filledSlots.forEach(slot => {
+          const r = slot.querySelector('.roll-result');
+          if (parseInt(r.textContent, 10) === maxVal) {
+            slot.classList.add('winner');
+          }
+        });
+      });
+    }
+
+    function addItem() {
+      const container = document.getElementById('items-container');
+      const count     = container.querySelectorAll('.item-row').length + 1;
+      const newRow    = createItemRow(count);
+      container.appendChild(newRow);
+      newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function resetResults() {
+      document.querySelectorAll('.player-slot').forEach(slot => {
+        slot.classList.remove('winner');
+        const r = slot.querySelector('.roll-result');
+        r.textContent  = '';
+        r.style.display = 'none';
+      });
+    }
+
+    // 初始化 30 行
+    (function init() {
+      const container = document.getElementById('items-container');
+      for (let i = 1; i <= DEFAULT_ITEMS; i++) {
+        container.appendChild(createItemRow(i));
+      }
+    })();
   </script>
 </body>
 </html>
