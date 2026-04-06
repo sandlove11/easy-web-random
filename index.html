@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>随机数生成器</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      text-align: center;
+      margin-bottom: 28px;
+      color: #222;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: #555;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="number"]:focus {
+      border-color: #4a90e2;
+    }
+
+    .field-count {
+      margin-bottom: 20px;
+    }
+
+    .result-box {
+      background: #f0f6ff;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 20px;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .result-label {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .result-numbers {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2563eb;
+      word-break: break-all;
+      line-height: 1.3;
+    }
+
+    .result-numbers.placeholder {
+      font-size: 1rem;
+      font-weight: 400;
+      color: #bbb;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    button:active {
+      background: #1e40af;
+    }
+
+    .error {
+      color: #e74c3c;
+      font-size: 0.82rem;
+      text-align: center;
+      margin-top: -12px;
+      margin-bottom: 12px;
+      min-height: 1.1em;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>随机数生成器</h1>
+
+    <div class="row">
+      <div class="field">
+        <label for="min">最小值</label>
+        <input type="number" id="min" value="1" />
+      </div>
+      <div class="field">
+        <label for="max">最大值</label>
+        <input type="number" id="max" value="100" />
+      </div>
+    </div>
+
+    <div class="field field-count">
+      <label for="count">生成数量</label>
+      <input type="number" id="count" value="1" min="1" max="100" />
+    </div>
+
+    <div class="error" id="error"></div>
+
+    <div class="result-box">
+      <span class="result-label">结果</span>
+      <div class="result-numbers placeholder" id="result">点击生成</div>
+    </div>
+
+    <button onclick="generate()">生成随机数</button>
+  </div>
+
+  <script>
+    function generate() {
+      const minVal = parseInt(document.getElementById('min').value, 10);
+      const maxVal = parseInt(document.getElementById('max').value, 10);
+      const count  = parseInt(document.getElementById('count').value, 10);
+      const errEl  = document.getElementById('error');
+      const resEl  = document.getElementById('result');
+
+      if (isNaN(minVal) || isNaN(maxVal) || isNaN(count)) {
+        errEl.textContent = '请输入有效的数字';
+        return;
+      }
+      if (minVal > maxVal) {
+        errEl.textContent = '最小值不能大于最大值';
+        return;
+      }
+      if (count < 1 || count > 100) {
+        errEl.textContent = '生成数量须在 1 ~ 100 之间';
+        return;
+      }
+
+      errEl.textContent = '';
+
+      const results = Array.from({ length: count }, () =>
+        Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal
+      );
+
+      resEl.classList.remove('placeholder');
+      resEl.textContent = results.join('  ');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') generate();
+    });
+  </script>
+</body>
+</html>
