@@ -196,6 +196,24 @@
     }
     .add-player-btn:hover { border-color: #4a90e2; color: #4a90e2; }
 
+    .remove-player-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px dashed #f87171;
+      background: transparent;
+      color: #f87171;
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .remove-player-btn:hover { border-color: #ef4444; color: #ef4444; background: #fef2f2; }
+
     /* ── 底部添加物品区 ── */
     .add-item-bar {
       text-align: center;
@@ -472,7 +490,25 @@
         }
       };
 
+      const removeBtn     = document.createElement('button');
+      removeBtn.className = 'remove-player-btn';
+      removeBtn.title     = '移除最后一个玩家';
+      removeBtn.innerHTML = '−';
+      removeBtn.onclick   = () => {
+        const slots = playersEl.querySelectorAll('.player-slot');
+        if (slots.length <= 1) return;
+        if (IS_CONFIGURED && sessionRef) {
+          const newCount = slots.length - 1;
+          sessionRef.child(`items/${index}/playerCount`).set(newCount);
+          sessionRef.child(`items/${index}/p/${newCount}`).set(null);
+          sessionRef.child(`items/${index}/r/${newCount}`).set(null);
+        } else {
+          slots[slots.length - 1].remove();
+        }
+      };
+
       playersEl.appendChild(addBtn);
+      playersEl.appendChild(removeBtn);
       row.appendChild(numEl);
       row.appendChild(metaEl);
       row.appendChild(playersEl);
