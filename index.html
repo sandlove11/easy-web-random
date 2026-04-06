@@ -304,9 +304,95 @@
     .select-grade.grade-orange { background: #f97316; color: #fff; border-color: #ea580c; }
     .select-grade.grade-purple { background: #a855f7; color: #fff; border-color: #9333ea; }
     .select-grade.grade-blue   { background: #3b82f6; color: #fff; border-color: #2563eb; }
+
+    /* ── 团次标签栏 ── */
+    .team-tabs-bar {
+      background: #1e2d50;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .team-tabs-bar::-webkit-scrollbar { display: none; }
+
+    .team-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 1rem;
+      color: rgba(255,255,255,0.55);
+      border-bottom: 3px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .team-tab:hover { color: rgba(255,255,255,0.85); }
+    .team-tab.active {
+      color: #f0c060;
+      border-bottom-color: #f0c060;
+      font-weight: 600;
+    }
+    .team-tab-name { pointer-events: none; }
+
+    .team-tab-rename {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.82rem;
+      opacity: 0.5;
+      padding: 0 2px;
+      color: inherit;
+      transition: opacity 0.15s;
+    }
+    .team-tab-rename:hover { opacity: 1; }
+
+    .team-tab-delete {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.82rem;
+      opacity: 0.45;
+      padding: 0 2px;
+      color: #f87171;
+      transition: opacity 0.15s;
+    }
+    .team-tab-delete:hover { opacity: 1; }
+
+    .add-team-btn {
+      padding: 6px 14px;
+      margin-left: 6px;
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.65);
+      border: 1px dashed rgba(255,255,255,0.3);
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .add-team-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
+
+    .team-lock-indicator {
+      display: none;
+      font-size: 0.78rem;
+      color: #fbbf24;
+      margin-left: auto;
+      animation: blink 1.1s infinite;
+    }
+    .team-lock-indicator.active { display: inline; }
   </style>
 </head>
 <body>
+
+  <!-- ── 团次标签栏 ── -->
+  <div class="team-tabs-bar" id="team-tabs-bar" style="display:none">
+    <span class="team-lock-indicator" id="team-lock-indicator">⏳ 正在分配中…</span>
+  </div>
 
   <!-- ── Firebase 配置提示横幅（未配置时显示） ── -->
   <div id="setup-banner">
@@ -364,11 +450,30 @@
     };
     /* ══════════════════════════════════════════════════════ */
 
-    const DEFAULT_ITEMS   = 30;
-    const DEFAULT_PLAYERS = 5;
+    const DEFAULT_ITEMS   = 15;
+    const DEFAULT_PLAYERS = 3;
     const IS_CONFIGURED   = !firebaseConfig.apiKey.includes('YOUR_');
 
     let db, sessionRef, sessionData = null;
+    let currentTeam = 0;   // 当前选中的团次索引
+
+    // ── 团次工具函数 ──
+    function getTeamKey() { return 't' + currentTeam; }
+
+    // 读取物品的当前团数据，兼容旧格式（items[i].p/r/playerCount）
+    function getTeamData(itemData) {
+      const tk = getTeamKey();
+      if (itemData[tk]) return itemData[tk];
+      // 向后兼容：旧会话没有 t0 层级，直接挂在 itemData 上
+      if (currentTeam === 0 && (itemData.p || itemData.playerCount != null)) {
+        return {
+          playerCount: itemData.playerCount,
+          p: itemData.p || {},
+          r: itemData.r || {}
+        };
+      }
+      return {};
+    }
 
     // ── 会话 ID（从 URL ?s= 读取，没有则生成） ──
     function getOrCreateSessionId() {
@@ -414,7 +519,8 @@
       input.maxLength   = 24;
       input.addEventListener('change', () => {
         if (IS_CONFIGURED && sessionRef) {
-          sessionRef.child(`items/${itemIdx}/p/${playerIdx}`).set(input.value.trim() || null);
+          // 使用 getTeamKey() 动态获取当前团次路径
+          sessionRef.child(`items/${itemIdx}/${getTeamKey()}/p/${playerIdx}`).set(input.value.trim() || null);
         }
       });
 
@@ -446,7 +552,7 @@
 
       const catSelect = document.createElement('select');
       catSelect.className = 'select-category';
-      ['七宗罪','龙纹','炼金武器','作战装备','角色','其他'].forEach(v => {
+      ['七宗罪','龙纹','炼金武器','作战装备','角色','诺顿','好感礼物','觉醒石','其他'].forEach(v => {
         const opt = document.createElement('option');
         opt.value = v; opt.textContent = v;
         catSelect.appendChild(opt);
@@ -476,6 +582,9 @@
       metaEl.appendChild(catSelect);
       metaEl.appendChild(gradeSelect);
 
+      row.appendChild(numEl);
+      row.appendChild(metaEl);
+
       const playersEl     = document.createElement('div');
       playersEl.className = 'players';
 
@@ -486,7 +595,7 @@
       addBtn.onclick   = () => {
         const count = playersEl.querySelectorAll('.player-slot').length;
         if (IS_CONFIGURED && sessionRef) {
-          sessionRef.child(`items/${index}/playerCount`).set(count + 1);
+          sessionRef.child(`items/${index}/${getTeamKey()}/playerCount`).set(count + 1);
         } else {
           playersEl.insertBefore(createPlayerSlot(index, count), addBtn);
         }
@@ -501,9 +610,10 @@
         if (slots.length <= 1) return;
         if (IS_CONFIGURED && sessionRef) {
           const newCount = slots.length - 1;
-          sessionRef.child(`items/${index}/playerCount`).set(newCount);
-          sessionRef.child(`items/${index}/p/${newCount}`).set(null);
-          sessionRef.child(`items/${index}/r/${newCount}`).set(null);
+          const tk = getTeamKey();
+          sessionRef.child(`items/${index}/${tk}/playerCount`).set(newCount);
+          sessionRef.child(`items/${index}/${tk}/p/${newCount}`).set(null);
+          sessionRef.child(`items/${index}/${tk}/r/${newCount}`).set(null);
         } else {
           slots[slots.length - 1].remove();
         }
@@ -511,8 +621,6 @@
 
       playersEl.appendChild(addBtn);
       playersEl.appendChild(removeBtn);
-      row.appendChild(numEl);
-      row.appendChild(metaEl);
       row.appendChild(playersEl);
       return row;
     }
@@ -537,12 +645,18 @@
       for (let i = 0; i < itemCount; i++) {
         const row      = container.children[i];
         const itemData = (data.items && data.items[i]) || {};
-        const count    = itemData.playerCount || DEFAULT_PLAYERS;
-        const players  = itemData.p || {};
-        const rolls    = itemData.r || {};
+        const teamData = getTeamData(itemData);          // ← 用当前团次数据
+        const count    = teamData.playerCount || DEFAULT_PLAYERS;
+        const players  = teamData.p || {};
+        const rolls    = teamData.r || {};
 
         const existing = row.querySelectorAll('.player-slot').length;
         if (existing < count) addSlotsToRow(row, i, existing, count);
+        // 支持缩减槽位
+        if (existing > count) {
+          const slots = row.querySelectorAll('.player-slot');
+          for (let k = existing - 1; k >= count; k--) slots[k].remove();
+        }
 
         // 找出该行最高 roll 分
         let maxRoll = -1;
@@ -563,7 +677,8 @@
 
           if (document.activeElement !== input) input.value = pv || '';
 
-          if (r != null) {
+          const hasName = !!(pv && typeof pv === 'string' && pv.trim());
+          if (hasName && r != null) {
             rollEl.textContent   = r;
             rollEl.style.display = 'inline';
           } else {
@@ -573,11 +688,11 @@
 
           slot.classList.toggle(
             'winner',
-            maxRoll >= 0 && pv && pv.trim() && parseInt(r, 10) === maxRoll
+            maxRoll >= 0 && hasName && r != null && parseInt(r, 10) === maxRoll
           );
         }
 
-        // 同步分类 & 品级
+        // 同步分类 & 品级（物品公共属性，与团次无关）
         const catSelect   = row.querySelector('.select-category');
         const gradeSelect = row.querySelector('.select-grade');
         if (catSelect && document.activeElement !== catSelect && itemData.category) {
@@ -588,25 +703,168 @@
           gradeSelect.className = 'select-grade grade-' + gradeSelect.value;
         }
       }
+
+      // 同步团次标签
+      createTeamTabs(data);
     }
 
-    // ── 操作：开始分配 ──
+    // ── 团次标签管理 ──
+    function createTeamTabs(data) {
+      const bar = document.getElementById('team-tabs-bar');
+      if (!IS_CONFIGURED) { bar.style.display = 'none'; return; }
+      bar.style.display = 'flex';
+
+      const teamCount = data.teamCount || 1;
+      const teamNames = data.teamNames || { 0: '团1' };
+
+      // 移除旧标签（保留锁指示器）
+      Array.from(bar.children).forEach(el => {
+        if (!el.id) el.remove();
+      });
+
+      // 插入在锁指示器之前
+      const lockEl = document.getElementById('team-lock-indicator');
+
+      for (let i = 0; i < teamCount; i++) {
+        const tab = document.createElement('div');
+        tab.className = 'team-tab' + (i === currentTeam ? ' active' : '');
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className   = 'team-tab-name';
+        nameSpan.textContent = teamNames[i] || `团${i + 1}`;
+
+        const renameBtn = document.createElement('button');
+        renameBtn.className   = 'team-tab-rename';
+        renameBtn.textContent = '✏️';
+        renameBtn.title       = '重命名';
+        renameBtn.onclick = (e) => {
+          e.stopPropagation();
+          const current = teamNames[i] || `团${i + 1}`;
+          const newName = prompt(`重命名「${current}」:`, current);
+          if (newName && newName.trim()) {
+            sessionRef.child(`teamNames/${i}`).set(newName.trim());
+          }
+        };
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className   = 'team-tab-delete';
+        deleteBtn.textContent = '✕';
+        deleteBtn.title       = '删除此团';
+        deleteBtn.style.display = teamCount <= 1 ? 'none' : '';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteTeam(i);
+        };
+
+        tab.appendChild(nameSpan);
+        tab.appendChild(renameBtn);
+        tab.appendChild(deleteBtn);
+        tab.onclick = () => switchTeam(i);
+        bar.insertBefore(tab, lockEl);
+      }
+
+      if (teamCount < 5) {
+        const addBtn = document.createElement('button');
+        addBtn.className   = 'add-team-btn';
+        addBtn.textContent = '＋ 新建团';
+        addBtn.onclick     = addTeam;
+        bar.insertBefore(addBtn, lockEl);
+      }
+    }
+
+    function deleteTeam(idx) {
+      if (!sessionRef || !sessionData) return;
+      const teamCount = sessionData.teamCount || 1;
+      if (teamCount <= 1) { alert('至少保留一个团次'); return; }
+      const teamName = (sessionData.teamNames && sessionData.teamNames[idx]) || `团${idx + 1}`;
+      if (!confirm(`确定删除「${teamName}」？此操作不可撤销。`)) return;
+
+      const itemCount = sessionData.itemCount || DEFAULT_ITEMS;
+      const updates = {};
+
+      // 后续团次数据向前移位
+      for (let t = idx; t < teamCount - 1; t++) {
+        updates[`teamNames/${t}`] = (sessionData.teamNames && sessionData.teamNames[t + 1]) || `团${t + 2}`;
+        for (let i = 0; i < itemCount; i++) {
+          const itemData = (sessionData.items && sessionData.items[i]) || {};
+          updates[`items/${i}/t${t}`] = itemData[`t${t + 1}`] || { playerCount: DEFAULT_PLAYERS };
+        }
+      }
+      // 清除最后一个团次
+      updates[`teamNames/${teamCount - 1}`] = null;
+      for (let i = 0; i < itemCount; i++) {
+        updates[`items/${i}/t${teamCount - 1}`] = null;
+      }
+      updates['teamCount'] = teamCount - 1;
+
+      const newTeam = currentTeam >= teamCount - 1 ? teamCount - 2 : currentTeam > idx ? currentTeam - 1 : currentTeam;
+      sessionRef.update(updates).then(() => { currentTeam = newTeam; });
+    }
+
+    function switchTeam(idx) {
+      if (idx === currentTeam) return;
+      currentTeam = idx;
+      if (sessionData) smartRender(sessionData);
+    }
+
+    function addTeam() {
+      if (!sessionRef || !sessionData) return;
+      const newIdx = sessionData.teamCount || 1;
+      if (newIdx >= 5) return;
+      const itemCount = sessionData.itemCount || DEFAULT_ITEMS;
+      const updates = {};
+      updates['teamCount'] = newIdx + 1;
+      updates[`teamNames/${newIdx}`] = `团${newIdx + 1}`;
+      for (let i = 0; i < itemCount; i++) {
+        updates[`items/${i}/t${newIdx}/playerCount`] = DEFAULT_PLAYERS;
+      }
+      sessionRef.update(updates).then(() => switchTeam(newIdx));
+    }
+
+    // ── 操作：开始分配（含分布式锁，防止多团长并发覆盖） ──
     function distribute() {
       if (IS_CONFIGURED) {
         if (!sessionRef || !sessionData) return;
-        const itemCount = sessionData.itemCount || DEFAULT_ITEMS;
-        const updates   = {};
-        for (let i = 0; i < itemCount; i++) {
-          const itemData    = (sessionData.items && sessionData.items[i]) || {};
-          const playerCount = itemData.playerCount || DEFAULT_PLAYERS;
-          const players     = itemData.p || {};
-          const rolls       = {};
-          for (let j = 0; j < playerCount; j++) {
-            if (players[j] && players[j].trim()) rolls[j] = Math.floor(Math.random() * 101);
+        const tk       = getTeamKey();
+        const lockPath = `teamLocks/${tk}`;
+        const teamName = (sessionData.teamNames && sessionData.teamNames[currentTeam]) || `团${currentTeam + 1}`;
+
+        // 用 Firebase transaction 抢占锁
+        sessionRef.child(lockPath).transaction(val => {
+          if (val === true) return; // 已锁定，返回 undefined 放弃事务
+          return true;             // 成功抢锁
+        }, (err, committed) => {
+          if (!committed) {
+            alert(`【${teamName}】正在分配中，请稍等…`);
+            return;
           }
-          updates[`items/${i}/r`] = Object.keys(rolls).length ? rolls : null;
-        }
-        sessionRef.update(updates);
+          // 抢锁成功，显示指示器
+          const indicator = document.getElementById('team-lock-indicator');
+          if (indicator) indicator.classList.add('active');
+
+          const itemCount = sessionData.itemCount || DEFAULT_ITEMS;
+          const updates   = {};
+          for (let i = 0; i < itemCount; i++) {
+            const itemData    = (sessionData.items && sessionData.items[i]) || {};
+            const teamData    = getTeamData(itemData);
+            const playerCount = teamData.playerCount || DEFAULT_PLAYERS;
+            const players     = teamData.p || {};
+            const rolls       = {};
+            for (let j = 0; j < playerCount; j++) {
+              if (players[j] && players[j].trim()) rolls[j] = Math.floor(Math.random() * 101);
+            }
+            updates[`items/${i}/${tk}/r`] = Object.keys(rolls).length ? rolls : null;
+          }
+
+          sessionRef.update(updates).then(() => {
+            // 释放锁
+            sessionRef.child(lockPath).set(null);
+            if (indicator) indicator.classList.remove('active');
+          }).catch(() => {
+            sessionRef.child(lockPath).set(null);
+            if (indicator) indicator.classList.remove('active');
+          });
+        });
       } else {
         // 本地模式
         document.querySelectorAll('.item-row').forEach(row => {
@@ -636,9 +894,14 @@
     // ── 操作：添加物品 ──
     function addItem() {
       if (IS_CONFIGURED && sessionRef && sessionData) {
-        const newIdx = sessionData.itemCount || DEFAULT_ITEMS;
-        sessionRef.child('itemCount').set(newIdx + 1);
-        sessionRef.child(`items/${newIdx}`).set({ playerCount: DEFAULT_PLAYERS });
+        const newIdx    = sessionData.itemCount || DEFAULT_ITEMS;
+        const teamCount = sessionData.teamCount || 1;
+        const updates   = { 'itemCount': newIdx + 1 };
+        // 为所有已存在的团次初始化新物品的玩家数
+        for (let t = 0; t < teamCount; t++) {
+          updates[`items/${newIdx}/t${t}/playerCount`] = DEFAULT_PLAYERS;
+        }
+        sessionRef.update(updates);
       } else {
         const container = document.getElementById('items-container');
         const i         = container.children.length;
@@ -649,12 +912,13 @@
       }
     }
 
-    // ── 操作：重置结果 ──
+    // ── 操作：重置结果（仅重置当前团次） ──
     function resetAll() {
       if (IS_CONFIGURED && sessionRef && sessionData) {
+        const tk        = getTeamKey();
         const itemCount = sessionData.itemCount || DEFAULT_ITEMS;
         const updates   = {};
-        for (let i = 0; i < itemCount; i++) updates[`items/${i}/r`] = null;
+        for (let i = 0; i < itemCount; i++) updates[`items/${i}/${tk}/r`] = null;
         sessionRef.update(updates);
       } else {
         document.querySelectorAll('.player-slot').forEach(slot => {
@@ -695,8 +959,16 @@
 
       sessionRef.once('value').then(snap => {
         if (!snap.exists()) {
-          const init = { itemCount: DEFAULT_ITEMS, items: {} };
-          for (let i = 0; i < DEFAULT_ITEMS; i++) init.items[i] = { playerCount: DEFAULT_PLAYERS };
+          // 新会话：含团次结构
+          const init = {
+            itemCount: DEFAULT_ITEMS,
+            teamCount: 1,
+            teamNames: { 0: '团1' },
+            items: {}
+          };
+          for (let i = 0; i < DEFAULT_ITEMS; i++) {
+            init.items[i] = { t0: { playerCount: DEFAULT_PLAYERS } };
+          }
           return sessionRef.set(init);
         }
       }).then(() => {
